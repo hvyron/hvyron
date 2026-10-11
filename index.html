@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HVYRON NEBULA 3D // DESTRUCTION MODE</title>
+<style>
+:root{--cyan:#00eaff;--blue:#087cff;--bg:#050912;--panel:#0a1422;--text:#d9faff;--muted:#6e91a8;}
+*{box-sizing:border-box;}
+body{margin:0;padding:20px;background:radial-gradient(ellipse at 50% 0%,#102747,transparent 60%),var(--bg);color:var(--text);font-family:Consolas,monospace;overflow-x:hidden;}
+header,main,footer{width:min(1600px,100%);margin-inline:auto;}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px;}
+.logo{color:var(--cyan);font-size:clamp(23px,3vw,36px);font-weight:bold;letter-spacing:4px;text-shadow:0 0 18px #00bfff66;}
+.logo span{color:white;}
+.tagline{margin-top:7px;color:var(--muted);font-size:10px;letter-spacing:3px;}
+.status{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:11px;}
+.dot{width:8px;height:8px;border-radius:50%;background:#627488;transition:.3s;}
+body.running .dot{background:#00ff9d;box-shadow:0 0 12px #00ff9d;}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:15px;}
+.viewport{min-width:0;height:min(75vh,820px);min-height:430px;position:relative;overflow:hidden;border:1px solid #087da8;border-radius:12px;background:#02050b;box-shadow:0 0 35px #007bff15;}
+#world{width:100%;height:100%;display:block;}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%);z-index:3;}
+.flash-overlay{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6;transition:opacity .15s;}
+.hud{position:absolute;z-index:4;top:15px;left:16px;pointer-events:none;color:var(--cyan);font-size:10px;line-height:1.9;letter-spacing:1px;text-shadow:0 0 8px #00cfff88;}
+.hud.right{left:auto;right:16px;text-align:right;color:#9ac2d8;}
+.event-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;font-size:clamp(24px,4vw,56px);font-weight:bold;letter-spacing:8px;color:#fff;text-shadow:0 0 30px #ff3333,0 0 60px #ff3333;pointer-events:none;opacity:0;transition:opacity .4s;text-align:center;}
+.event-banner.show{opacity:1;}
+.crosshair{position:absolute;top:50%;left:50%;width:24px;height:24px;transform:translate(-50%,-50%);border:1px solid #00eaff55;border-radius:50%;pointer-events:none;z-index:4;}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0;}
+.panel{border:1px solid #173b50;border-radius:9px;padding:15px;background:linear-gradient(145deg,#0b1828,#060c16);}
+.panel-title{font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:14px;}
+.big-number{font-size:38px;color:white;font-weight:bold;}
+.unit{color:var(--cyan);font-size:11px;}
+.meter{height:5px;border-radius:5px;overflow:hidden;background:#182a3b;margin:10px 0 15px;}
+.meter div{width:0;height:100%;background:linear-gradient(90deg,#087cff,#00ffda);transition:width .15s;}
+.stat{display:flex;justify-content:space-between;gap:10px;margin:11px 0;font-size:11px;color:var(--muted);}
+.stat strong{color:#e9fcff;font-weight:normal;}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+button{min-height:39px;border:1px solid #16506b;border-radius:5px;background:#0b2032;color:var(--cyan);font:bold 11px Consolas,monospace;cursor:pointer;transition:.2s;}
+button:hover:not(:disabled){background:#123952;border-color:var(--cyan);box-shadow:0 0 12px #00bfff22;}
+button:active:not(:disabled){transform:scale(.97);}
+button.primary{background:var(--cyan);color:#001018;border-color:var(--cyan);}
+button.primary:hover:not(:disabled){background:#a4faff;}
+button.wide{grid-column:1/-1;}
+button.danger{background:linear-gradient(90deg,#ff3333,#ff0066);color:#fff;border-color:#ff0066;}
+button.danger:hover:not(:disabled){box-shadow:0 0 20px #ff333388;}
+button.surprise{background:linear-gradient(90deg,#8d4dff,#ff4e72);color:#fff;border-color:#ff4e72;animation:pulseSurprise 1.5s infinite;}
+@keyframes pulseSurprise{0%,100%{box-shadow:0 0 8px #ff4e7288;}50%{box-shadow:0 0 24px #ff4e72cc;}}
+button:disabled{opacity:.4;cursor:not-allowed;}
+.range-label{display:flex;justify-content:space-between;margin:15px 0 7px;color:var(--muted);font-size:10px;}
+input[type="range"]{width:100%;accent-color:var(--cyan);}
+.log{height:110px;overflow-y:auto;color:#83a9c1;font-size:10px;line-height:1.8;overflow-wrap:anywhere;}
+.log div::before{content:"> ";color:var(--cyan);}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:14px;color:#58748a;font-size:10px;}
+@media(max-width:900px){body{padding:10px;}.layout{grid-template-columns:1fr;}.viewport{height:58vh;min-height:350px;}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.side .panel:last-child{grid-column:1/-1;}}
+</style>
+</head>
+<body>
+<header>
+    <div>
+        <div class="logo">HVYRON <span>NEBULA 3D</span></div>
+        <div class="tagline">DESTRUCTION MODE // 8 CINEMATIC EVENTS</div>
+    </div>
+    <div class="status"><span class="dot"></span><span id="status">SYSTEM STANDBY</span></div>
+</header>
+
+<main class="layout">
+    <section class="viewport" id="viewport">
+        <canvas id="world"></canvas>
+        <div class="vignette"></div>
+        <div class="flash-overlay" id="flash"></div>
+        <div class="event-banner" id="eventBanner"></div>
+        <div class="hud">
+            HVYRON SPATIAL ENGINE<br>
+            DESTRUCTION MODE ACTIVE<br>
+            RENDER: PBR // HDR SKY
+        </div>
+        <div class="hud right">
+            FPS <span id="hudFps">--</span><br>
+            VEHICLES <span id="hudVehicles">0</span><br>
+            <span id="clock">00:00:00</span>
+        </div>
+        <div class="crosshair"></div>
+    </section>
+
+    <aside class="side">
+        <section class="panel">
+            <div class="panel-title">GPU / PERFORMANCE</div>
+            <div><span class="big-number" id="fps">--</span><span class="unit">FPS</span></div>
+            <div class="meter"><div id="fpsMeter"></div></div>
+            <div class="stat"><span>FRAME TIME</span><strong id="frameTime">-- ms</strong></div>
+            <div class="stat"><span>DRAW CALLS</span><strong id="drawCalls">--</strong></div>
+            <div class="stat"><span>TRIANGLES</span><strong id="objectCount">--</strong></div>
+            <div class="stat"><span>DESTROYED</span><strong id="destroyedCount">0</strong></div>
+            <div class="stat"><span>NEXT EVENT</span><strong id="nextEvent">--</strong></div>
+            <div class="stat"><span>RESOLUTION</span><strong id="resolution">--</strong></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-title">DESTRUCTION CONTROL</div>
+            <div class="controls">
+                <button class="primary" id="start">START</button>
+                <button id="pause" disabled>PAUSE</button>
+                <button id="reset">RESET</button>
+                <button id="camera">CAMERA</button>
+                <button class="wide danger" id="launchMissile" disabled>🚀 LAUNCH MISSILE</button>
+                <button class="wide danger" id="dropMeteor" disabled>☄️ DROP METEOR</button>
+                <button class="wide surprise" id="surprise" disabled>🎲 SURPRISE ME NOW</button>
+                <button class="wide" id="traffic">ADD TRAFFIC</button>
+            </div>
+            <div class="range-label"><span>SIMULATION SPEED</span><strong id="speedValue">1.0×</strong></div>
+            <input id="speed" type="range" min=".3" max="3" step=".1" value="1">
+            <div class="range-label"><span>FOG DENSITY</span><strong id="fogValue">40%</strong></div>
+            <input id="fog" type="range" min="10" max="100" step="5" value="40">
+        </section>
+
+        <section class="panel">
+            <div class="panel-title">SYSTEM EVENT LOG</div>
+            <div class="log" id="log">
+                <div>DESTRUCTION MODE ARMED</div>
+                <div>WAITING FOR START</div>
+            </div>
+        </section>
+    </aside>
+</main>
+
+<footer>
+    <span>HVYRON NEBULA // DESTRUCTION MODE</span>
+    <span>8 EVENTS // CARS FLIP // CRATERS // MISSILES</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+function log(message) {
+    const logEl = document.getElementById("log");
+    if (!logEl) return;
+    const entry = document.createElement("div");
+    entry.textContent = new Date().toLocaleTimeString() + " " + message;
+    logEl.prepend(entry);
+    while (logEl.children.length > 8) logEl.lastElementChild.remove();
+}
+
+(() => {
+    const $ = id => document.getElementById(id);
+    const ui = {
+        status: $("status"), fps: $("fps"), hudFps: $("hudFps"),
+        frameTime: $("frameTime"), fpsMeter: $("fpsMeter"),
+        drawCalls: $("drawCalls"), objectCount: $("objectCount"),
+        resolution: $("resolution"), hudVehicles: $("hudVehicles"),
+        nextEvent: $("nextEvent"), destroyedCount: $("destroyedCount"),
+        clock: $("clock"), log: $("log"),
+        start: $("start"), pause: $("pause"), reset: $("reset"),
+        camera: $("camera"), traffic: $("traffic"), surprise: $("surprise"),
+        launchMissile: $("launchMissile"), dropMeteor: $("dropMeteor"),
+        speed: $("speed"), speedValue: $("speedValue"),
+        fog: $("fog"), fogValue: $("fogValue"), banner: $("eventBanner"),
+        flash: $("flash")
+    };
+
+    if (!window.THREE) { ui.status.textContent = "THREE.JS FAILED TO LOAD"; log("CHECK INTERNET"); return; }
+    const THREE = window.THREE;
+
+    let scene, camera, renderer, sunLight, hemiLight, sky, sunMesh, ambientLight;
+    let running = false, raf = 0, previousTime = 0;
+    let fpsFrames = 0, fpsElapsed = 0, simTime = 0;
+    let currentCamera = 0, timeOfDay = 0;
+    let nextEventTime = 6;
+    let eventActive = null;
+    let eventCameraOverride = null;
+    let destroyedCount = 0;
+    let screenShake = 0;
+    let shakeIntensity = 0;
+
+    const traffic = [], roadMarks = [], buildings = [], craters = [];
+    const eventObjects = [];
+
+    // ============ MATERIAIS ============
+    const mat = (c, o = {}) => new THREE.MeshStandardMaterial({
+        color: c, metalness: o.metalness ?? 0.1, roughness: o.roughness ?? 0.7,
+        emissive: o.emissive ?? 0x000000, emissiveIntensity: o.emissiveIntensity ?? 1,
+        transparent: o.transparent ?? false, opacity: o.opacity ?? 1,
+        side: o.side ?? THREE.FrontSide
+    });
+
+    // ============ TEXTURAS ============
+    function makeAsphaltTexture() {
+        const s = 512, c = document.createElement("canvas");
+        c.width = c.height = s;
+        const x = c.getContext("2d");
+        x.fillStyle = "#1a1a1f"; x.fillRect(0, 0, s, s);
+        for (let i = 0; i < 20000; i++) {
+            const g = Math.random() * 40 + 20;
+            x.fillStyle = `rgb(${g},${g},${g+3})`;
+            x.fillRect(Math.random()*s, Math.random()*s, 1.5, 1.5);
+        }
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(4, 60);
+        return t;
+    }
+
+    function makeFacade(base = "#1a2438", win = "#ffd9a0") {
+        const w = 128, h = 256, c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        const x = c.getContext("2d");
+        x.fillStyle = base; x.fillRect(0, 0, w, h);
+        const cols = 5, rows = 12, pX = w/(cols*2), pY = h/(rows*2);
+        const ww = (w-pX*(cols+1))/cols, wh = (h-pY*(rows+1))/rows;
+        for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+            const wx = pX + col*(ww+pX), wy = pY + r*(wh+pY);
+            if (Math.random() > 0.6) {
+                x.fillStyle = Math.random() > 0.5 ? win : "#a8d8ff";
+                x.globalAlpha = 0.5 + Math.random()*0.5;
+            } else { x.fillStyle = "#0a0e18"; x.globalAlpha = 1; }
+            x.fillRect(wx, wy, ww, wh);
+        }
+        x.globalAlpha = 1;
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        return t;
+    }
+
+    function makeSkyTexture() {
+        const c = document.createElement("canvas");
+        c.width = 32; c.height = 512;
+        const x = c.getContext("2d");
+        const g = x.createLinearGradient(0, 0, 0, 512);
+        g.addColorStop(0, "#0a1a3a");
+        g.addColorStop(0.35, "#1e4a7a");
+        g.addColorStop(0.55, "#5a8fc0");
+        g.addColorStop(0.72, "#c8a878");
+        g.addColorStop(1, "#f0d0a0");
+        x.fillStyle = g; x.fillRect(0, 0, 32, 512);
+        return new THREE.CanvasTexture(c);
+    }
+
+    function createSky() {
+        const sm = new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false, fog: false });
+        sm.map = makeSkyTexture();
+        sky = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), sm);
+        scene.add(sky);
+        sunMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(8, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false })
+        );
+        sunMesh.position.set(-80, 90, -180);
+        scene.add(sunMesh);
+    }
+
+    // ============ PISTA ============
+    function createRoad() {
+        const road = new THREE.Mesh(
+            new THREE.PlaneGeometry(20, 500),
+            new THREE.MeshStandardMaterial({ map: makeAsphaltTexture(), color: 0x2a2a30, roughness: 0.95, metalness: 0.05 })
+        );
+        road.rotation.x = -Math.PI/2; road.position.set(0, 0, -200); road.receiveShadow = true;
+        road.userData.isGround = true;
+        scene.add(road);
+
+        for (const side of [-1, 1]) {
+            const sw = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 500), mat(0x3a3a42, { roughness: 0.9 }));
+            sw.position.set(side*11.5, 0.15, -200); sw.receiveShadow = true; sw.castShadow = true;
+            scene.add(sw);
+            const curb = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 500), mat(0x555560, { roughness: 0.85 }));
+            curb.position.set(side*10, 0.2, -200);
+            scene.add(curb);
+        }
+        for (const x of [-0.15, 0.15]) {
+            const line = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.12, 500),
+                new THREE.MeshStandardMaterial({ color: 0xffcc33, roughness: 0.7, emissive: 0x442200, emissiveIntensity: 0.3 })
+            );
+            line.rotation.x = -Math.PI/2; line.position.set(x, 0.01, -200);
+            scene.add(line);
+        }
+        for (let z = 40; z > -450; z -= 6) for (const x of [-7.5, 7.5]) {
+            const m = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.15, 3),
+                new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, emissive: 0x222222, emissiveIntensity: 0.2 })
+            );
+            m.rotation.x = -Math.PI/2; m.position.set(x, 0.012, z);
+            scene.add(m); roadMarks.push(m);
+        }
+        for (const side of [-1, 1]) for (let z = 30; z > -450; z -= 30) createStreetLight(side*9.5, z);
+    }
+
+    function createStreetLight(x, z) {
+        const g = new THREE.Group(); scene.add(g); g.position.set(x, 0, z);
+        const mm = mat(0x2a2a30, { metalness: 0.8, roughness: 0.4 });
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 7, 12), mm);
+        pole.position.y = 3.5; pole.castShadow = true; g.add(pole);
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2, 8), mm);
+        arm.position.set(-Math.sign(x)*0.9, 7, 0); arm.rotation.z = Math.sign(x)*Math.PI/2.5;
+        g.add(arm);
+        const lamp = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 0.15, 0.25),
+            new THREE.MeshStandardMaterial({ color: 0xffeebb, emissive: 0xffcc88, emissiveIntensity: 1.5, roughness: 0.3 })
+        );
+        lamp.position.set(-Math.sign(x)*1.7, 6.75, 0);
+        g.add(lamp);
+    }
+
+    // ============ PRÉDIOS ============
+    function createBuildings() {
+        const facades = [
+            makeFacade("#1a2438", "#ffd9a0"),
+            makeFacade("#202836", "#a8d8ff"),
+            makeFacade("#151c2c", "#ffcc88"),
+            makeFacade("#252d3d", "#ffffff")
+        ];
+        for (const side of [-1, 1]) {
+            let z = 20;
+            while (z > -450) {
+                const w = 6 + Math.random()*8, d = 6 + Math.random()*8, h = 8 + Math.random()*40;
+                const gap = 2 + Math.random()*4;
+                const ft = facades[Math.floor(Math.random()*facades.length)].clone();
+                ft.needsUpdate = true; ft.repeat.set(Math.round(w/4), Math.round(h/4));
+                const top = mat(0x0a0e18, { roughness: 0.95 });
+                const sideMat = new THREE.MeshStandardMaterial({ map: ft, color: 0xffffff, roughness: 0.7, metalness: 0.1 });
+                const b = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, h, d),
+                    [sideMat, sideMat, top, top, sideMat, sideMat]
+                );
+                const bx = side*(13 + w/2 + Math.random()*3);
+                b.position.set(bx, h/2, z); b.castShadow = true; b.receiveShadow = true;
+                scene.add(b);
+                if (h > 25 && Math.random() > 0.6) {
+                    const beacon = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.15, 8, 8),
+                        new THREE.MeshBasicMaterial({ color: 0xff2222 })
+                    );
+                    beacon.position.set(bx, h + 0.5, z);
+                    scene.add(beacon);
+                    buildings.push({ beacon, phase: Math.random()*6.28 });
+                }
+                z -= (d + gap);
+            }
+        }
+    }
+
+    // ============ CARRO ============
+    function createCar(color = 0xcc2222) {
+        const g = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({ color, metalness: 0.6, roughness: 0.35 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x111820, metalness: 0.9, roughness: 0.05 });
+        const chromeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 1, roughness: 0.15 });
+        const tireMat = mat(0x0a0a0a, { roughness: 0.9 });
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 3.6), bodyMat);
+        body.position.y = 0.65; body.castShadow = true; g.add(body);
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.15, 1.2), bodyMat);
+        hood.position.set(0, 0.92, -1.1); g.add(hood);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 1.6), glassMat);
+        roof.position.set(0, 1.15, 0.1); g.add(roof);
+
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffee, emissiveIntensity: 2, roughness: 0.2 });
+        for (const x of [-0.6, 0.6]) {
+            const h = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.08), headMat);
+            h.position.set(x, 0.72, -1.82); g.add(h);
+        }
+        const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 2, roughness: 0.3 });
+        for (const x of [-0.65, 0.65]) {
+            const t = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), tailMat);
+            t.position.set(x, 0.72, 1.82); g.add(t);
+        }
+        const wheels = [];
+        for (const x of [-0.85, 0.85]) for (const z of [-1.15, 1.15]) {
+            const wg = new THREE.Group();
+            const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 24), tireMat);
+            tire.rotation.z = Math.PI/2; tire.castShadow = true; wg.add(tire);
+            const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.27, 12), chromeMat);
+            rim.rotation.z = Math.PI/2; wg.add(rim);
+            wg.position.set(x, 0.38, z); g.add(wg); wheels.push(wg);
+        }
+        g.userData.wheels = wheels;
+        g.userData.originalColor = color;
+        return g;
+    }
+
+    function createTrafficCar(x, z, color) {
+        const car = createCar(color);
+        car.rotation.y = Math.PI; car.position.set(x, 0, z);
+        scene.add(car);
+        traffic.push({
+            object: car, speed: 22 + Math.random()*18,
+            wheels: car.userData.wheels, phase: Math.random()*6.28,
+            abducted: false, abductY: 0,
+            destroyed: false, burning: false,
+            vel: new THREE.Vector3(0,0,0),
+            angVel: new THREE.Vector3(0,0,0)
+        });
+    }
+
+    // ============================================================
+    //  💥 SISTEMA DE DESTRUIÇÃO
+    // ============================================================
+
+    // Deixa um carro capotado + queimando
+    function destroyCar(carState, force = 1) {
+        if (carState.destroyed) return;
+        carState.destroyed = true;
+        carState.burning = true;
+        carState.angVel.set(
+            (Math.random()-0.5) * 8 * force,
+            (Math.random()-0.5) * 6 * force,
+            (Math.random()-0.5) * 8 * force
+        );
+        carState.vel.set(
+            (Math.random()-0.5) * 20 * force,
+            5 + Math.random()*10 * force,
+            (Math.random()-0.5) * 20 * force
+        );
+
+        // Escurece a lataria
+        carState.object.traverse(o => {
+            if (o.material && o.material.color && o.material.metalness !== undefined) {
+                o.material.color.multiplyScalar(0.3);
+                if (o.material.emissive) o.material.emissive.setHex(0x000000);
+            }
+        });
+
+        // Adiciona chama na posição
+        carState.flameTimer = 0;
+        carState.flame = new THREE.PointLight(0xff6600, 40, 12);
+        carState.flame.position.set(0, 1.5, 0);
+        carState.object.add(carState.flame);
+
+        destroyedCount++;
+        ui.destroyedCount.textContent = destroyedCount;
+    }
+
+    // Abre cratera no chão
+    function createCrater(x, z, radius = 4, depth = 1.5) {
+        // Buraco (disco preto)
+        const crater = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 32),
+            new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.95 })
+        );
+        crater.rotation.x = -Math.PI/2;
+        crater.position.set(x, 0.02, z);
+        scene.add(crater);
+
+        // Anel de detritos (aro iluminado pelo calor)
+        const rim = new THREE.Mesh(
+            new THREE.RingGeometry(radius, radius * 1.25, 32),
+            new THREE.MeshStandardMaterial({
+                color: 0x442211, roughness: 0.95, metalness: 0.1,
+                emissive: 0xff3300, emissiveIntensity: 0.5
+            })
+        );
+        rim.rotation.x = -Math.PI/2;
+        rim.position.set(x, 0.03, z);
+        scene.add(rim);
+
+        // Cone afundado (dá impressão de profundidade)
+        const hole = new THREE.Mesh(
+            new THREE.ConeGeometry(radius, depth, 24, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
+        );
+        hole.position.set(x, -depth/2 + 0.02, z);
+        hole.rotation.x = Math.PI;
+        scene.add(hole);
+
+        craters.push({ crater, rim, hole, x, z, radius });
+
+        // Fumaça subindo
+        for (let i = 0; i < 12; i++) {
+            const smoke = new THREE.Mesh(
+                new THREE.SphereGeometry(0.6 + Math.random()*0.5, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.7 })
+            );
+            smoke.position.set(
+                x + (Math.random()-0.5) * radius * 1.5,
+                0.3,
+                z + (Math.random()-0.5) * radius * 1.5
+            );
+            scene.add(smoke);
+            eventObjects.push({
+                type: "smoke",
+                obj: smoke,
+                rise: 1.5 + Math.random()*2,
+                drift: (Math.random()-0.5)*1.5,
+                t: 0, duration: 4 + Math.random()*2
+            });
+        }
+    }
+
+    // Explosão genérica de partículas + onda de choque + luz
+    function explosion(pos, options = {}) {
+        const {
+            color = 0xffaa33,
+            count = 80,
+            radius = 2,
+            force = 1,
+            damageCars = true,
+            damageRadius = 15,
+            createCraterFlag = true,
+            craterRadius = 4,
+            shakeAmount = 1,
+            lightColor = 0xffaa33
+        } = options;
+
+        // Flash global
+        ui.flash.style.opacity = "0.9";
+        setTimeout(() => ui.flash.style.opacity = "0", 120);
+
+        // Screen shake
+        screenShake = 0.6;
+        shakeIntensity = shakeAmount;
+
+        // Luz explosiva
+        const light = new THREE.PointLight(lightColor, 400, 60);
+        light.position.copy(pos);
+        scene.add(light);
+        eventObjects.push({
+            type: "explosionLight",
+            light, t: 0, duration: 0.6
+        });
+
+        // Onda de choque (anel expandindo)
+        const shock = new THREE.Mesh(
+            new THREE.RingGeometry(0.5, 1, 32),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffff, transparent: true, opacity: 0.9,
+                side: THREE.DoubleSide
+            })
+        );
+        shock.position.copy(pos);
+        shock.rotation.x = -Math.PI/2;
+        scene.add(shock);
+        eventObjects.push({
+            type: "shockwave",
+            obj: shock, t: 0, duration: 0.8,
+            maxScale: damageRadius
+        });
+
+        // Bola de fogo central
+        const fireball = new THREE.Mesh(
+            new THREE.SphereGeometry(radius, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+        );
+        fireball.position.copy(pos);
+        scene.add(fireball);
+        eventObjects.push({
+            type: "fireball",
+            obj: fireball, t: 0, duration: 0.7,
+            initialScale: radius
+        });
+
+        // Partículas
+        for (let i = 0; i < count; i++) {
+            const dir = new THREE.Vector3(
+                Math.random()-0.5,
+                Math.random()*0.8,
+                Math.random()-0.5
+            ).normalize();
+            const size = 0.15 + Math.random()*0.25;
+            const part = new THREE.Mesh(
+                new THREE.SphereGeometry(size, 6, 6),
+                new THREE.MeshBasicMaterial({
+                    color: [0xffaa33, 0xff6600, 0xffffff, 0xff2222][Math.floor(Math.random()*4)],
+                    transparent: true
+                })
+            );
+            part.position.copy(pos);
+            scene.add(part);
+            eventObjects.push({
+                type: "debrisPart",
+                obj: part,
+                velocity: dir.multiplyScalar((8 + Math.random()*20) * force),
+                t: 0, duration: 1.5 + Math.random()*0.5,
+                gravity: 20
+            });
+        }
+
+        // Capota carros próximos
+        if (damageCars) {
+            for (const v of traffic) {
+                if (v.destroyed) continue;
+                const dx = v.object.position.x - pos.x;
+                const dz = v.object.position.z - pos.z;
+                const d = Math.sqrt(dx*dx + dz*dz);
+                if (d < damageRadius) {
+                    const f = (1 - d/damageRadius) * force;
+                    destroyCar(v, f);
+                    // Empurra na direção da explosão
+                    const dir = new THREE.Vector3(dx, 0, dz).normalize();
+                    v.vel.addScaledVector(dir, 25 * f);
+                }
+            }
+        }
+
+        // Cratera
+        if (createCraterFlag) {
+            createCrater(pos.x, pos.z, craterRadius);
+        }
+
+        // Fumaça
+        for (let i = 0; i < 15; i++) {
+            const smoke = new THREE.Mesh(
+                new THREE.SphereGeometry(0.7 + Math.random()*0.7, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.7 })
+            );
+            smoke.position.copy(pos);
+            smoke.position.x += (Math.random()-0.5) * radius * 2;
+            smoke.position.z += (Math.random()-0.5) * radius * 2;
+            scene.add(smoke);
+            eventObjects.push({
+                type: "smoke",
+                obj: smoke,
+                rise: 2 + Math.random()*2,
+                drift: (Math.random()-0.5)*2,
+                t: 0, duration: 4 + Math.random()*3
+            });
+        }
+    }
+
+    // ============================================================
+    //  🚀 MÍSSIL TÁTICO
+    // ============================================================
+    function launchMissile() {
+        log("🚀 MISSILE LAUNCHED");
+        showBanner("🚀 MISSILE", "0.9,0.3,0.3");
+
+        const startX = (Math.random() - 0.5) * 10;
+        const startZ = 20;   // atrás da câmera
+        const targetX = (Math.random() - 0.5) * 12;
+        const targetZ = -60 - Math.random()*60;
+
+        const missile = new THREE.Group();
+
+        // Corpo
+        const body = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.18, 0.25, 2.5, 12),
+            new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.2 })
+        );
+        body.rotation.x = Math.PI/2;
+        missile.add(body);
+
+        // Bico
+        const nose = new THREE.Mesh(
+            new THREE.ConeGeometry(0.2, 0.7, 12),
+            new THREE.MeshStandardMaterial({ color: 0xff3333, metalness: 0.7, roughness: 0.3 })
+        );
+        nose.rotation.x = -Math.PI/2;
+        nose.position.z = -1.6;
+        missile.add(nose);
+
+        // Aletas
+        for (const s of [-1, 1]) {
+            const fin = new THREE.Mesh(
+                new THREE.BoxGeometry(0.05, 0.5, 0.6),
+                new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 })
+            );
+            fin.position.set(s*0.3, 0, 1);
+            missile.add(fin);
+        }
+
+        // Motor (brilho)
+        const engine = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff8833 })
+        );
+        engine.position.z = 1.3;
+        missile.add(engine);
+
+        const engineLight = new THREE.PointLight(0xff8833, 60, 20);
+        missile.add(engineLight);
+
+        missile.position.set(startX, 1.5, startZ);
+        missile.rotation.x = -Math.PI/2;   // aponta para frente
+        scene.add(missile);
+
+        // Trajetória em arco: y sobe e depois desce
+        eventObjects.push({
+            type: "missile",
+            obj: missile,
+            engine, engineLight,
+            startX, startZ, targetX, targetZ,
+            t: 0, duration: 3.5,
+            trailTimer: 0
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(targetX*0.5 + 10, 8, 10),
+            look: new THREE.Vector3(targetX, 3, targetZ),
+            duration: 5
+        };
+    }
+
+    function updateMissile(m, dt) {
+        const p = Math.min(1, m.t / m.duration);
+
+        // Curva balística
+        const x = m.startX + (m.targetX - m.startX) * p;
+        const z = m.startZ + (m.targetZ - m.startZ) * p;
+        // y sobe até 30 no meio, depois cai a 0
+        const y = 1.5 + Math.sin(p * Math.PI) * 30 - p * p * 1.5;
+
+        m.obj.position.set(x, Math.max(0.2, y), z);
+
+        // Rotação: aponta para onde vai
+        const dx = (m.targetX - m.startX);
+        const dz = (m.targetZ - m.startZ);
+        const dy = -Math.sin(p * Math.PI) * 30 * Math.PI;
+        m.obj.rotation.y = Math.atan2(dx, dz);
+        m.obj.rotation.x = -Math.PI/2 + Math.atan2(dy, Math.sqrt(dx*dx + dz*dz));
+
+        // Rastro
+        m.trailTimer += dt;
+        if (m.trailTimer > 0.02) {
+            m.trailTimer = 0;
+            const trail = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15 + Math.random()*0.1, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0xff8833, transparent: true, opacity: 0.8 })
+            );
+            trail.position.copy(m.obj.position);
+            scene.add(trail);
+            eventObjects.push({
+                type: "trail", obj: trail, t: 0, duration: 0.8
+            });
+        }
+
+        // Explode ao chegar
+        if (p >= 1) {
+            explosion(
+                new THREE.Vector3(m.targetX, 0.5, m.targetZ),
+                {
+                    color: 0xffaa33,
+                    count: 120,
+                    radius: 3,
+                    force: 1.5,
+                    damageCars: true,
+                    damageRadius: 25,
+                    createCraterFlag: true,
+                    craterRadius: 5,
+                    shakeAmount: 1.5,
+                    lightColor: 0xffaa33
+                }
+            );
+            log("💥 IMPACT — " + traffic.filter(v => v.destroyed).length + " CARS DESTROYED");
+            m.done = true;
+        }
+    }
+
+    // ============================================================
+    //  ☄️ METEORO MELHORADO (com capotamento + cratera)
+    // ============================================================
+    function eventMeteor() {
+        log("☄️ METEOR INBOUND");
+        showBanner("☄️ METEOR", "1,0.5,0.2");
+
+        const startX = (Math.random() - 0.5) * 40;
+        const startZ = -200;
+        const targetX = (Math.random() - 0.5) * 12;
+        const targetZ = -40 - Math.random()*40;
+
+        const core = new THREE.Mesh(
+            new THREE.SphereGeometry(1.8, 20, 20),
+            new THREE.MeshBasicMaterial({ color: 0xffaa33 })
+        );
+        core.position.set(startX, 90, startZ);
+        scene.add(core);
+
+        const halo = new THREE.Mesh(
+            new THREE.SphereGeometry(3, 20, 20),
+            new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.5 })
+        );
+        halo.position.copy(core.position);
+        scene.add(halo);
+
+        const light = new THREE.PointLight(0xff6622, 300, 100);
+        light.position.copy(core.position);
+        scene.add(light);
+
+        eventObjects.push({
+            type: "meteor",
+            core, halo, light,
+            t: 0, duration: 2.0,
+            startX, startZ, targetX, targetZ,
+            exploded: false
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(targetX*0.5 + 8, 5, 15),
+            look: new THREE.Vector3(targetX, 3, targetZ),
+            duration: 5
+        };
+    }
+
+    function updateMeteor(e, dt) {
+        const p = Math.min(1, e.t / e.duration);
+
+        if (!e.exploded) {
+            e.core.position.x = e.startX + (e.targetX - e.startX)*p;
+            e.core.position.z = e.startZ + (e.targetZ - e.startZ)*p;
+            e.core.position.y = 90 * (1 - p*p);
+            e.halo.position.copy(e.core.position);
+            e.light.position.copy(e.core.position);
+            e.core.rotation.x += dt*4;
+            e.core.rotation.y += dt*3;
+            e.halo.rotation.x -= dt*2;
+            e.halo.rotation.y += dt*2.5;
+
+            // Rastro
+            if (Math.random() > 0.4) {
+                const t = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.7 + Math.random()*0.6, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xff8833, transparent: true, opacity: 0.8 })
+                );
+                t.position.copy(e.core.position);
+                t.position.x += (Math.random()-0.5)*1;
+                t.position.z += (Math.random()-0.5)*1;
+                scene.add(t);
+                eventObjects.push({ type: "trail", obj: t, t: 0, duration: 1.2 });
+            }
+
+            if (p >= 1) {
+                e.exploded = true;
+
+                // 💥 GRANDE EXPLOSÃO
+                explosion(
+                    new THREE.Vector3(e.targetX, 0.5, e.targetZ),
+                    {
+                        color: 0xffaa33,
+                        count: 150,
+                        radius: 4,
+                        force: 2,
+                        damageCars: true,
+                        damageRadius: 35,   // raio grande — capota muitos carros
+                        createCraterFlag: true,
+                        craterRadius: 7,
+                        shakeAmount: 2,
+                        lightColor: 0xff6622
+                    }
+                );
+
+                // Destrói halo/core
+                e.core.material.color.setHex(0xffffff);
+                e.core.scale.setScalar(0.1);
+                e.halo.material.opacity = 0;
+
+                log("☄️ IMPACT — CARS FLIPPED — CRATER 7m");
+            }
+        }
+    }
+
+    // ============================================================
+    //  🌊 TSUNAMI
+    // ============================================================
+    function eventTsunami() {
+        log("🌊 TSUNAMI WARNING");
+        showBanner("🌊 TSUNAMI", "0.2,0.6,1");
+
+        const wave = new THREE.Mesh(
+            new THREE.BoxGeometry(80, 1, 12),
+            new THREE.MeshStandardMaterial({
+                color: 0x2a7fbf, transparent: true, opacity: 0.85,
+                metalness: 0.5, roughness: 0.2,
+                emissive: 0x0a3a5a, emissiveIntensity: 0.5
+            })
+        );
+        wave.position.set(0, 0.5, -200);
+        scene.add(wave);
+
+        // Espuma no topo
+        const foam = new THREE.Mesh(
+            new THREE.BoxGeometry(80, 0.4, 12.5),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })
+        );
+        foam.position.set(0, 1.2, -200);
+        scene.add(foam);
+
+        eventObjects.push({
+            type: "tsunami",
+            wave, foam,
+            t: 0, duration: 6,
+            speed: 45
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(15, 12, 20),
+            look: new THREE.Vector3(0, 3, -60),
+            duration: 6.5
+        };
+    }
+
+    function updateTsunami(e, dt) {
+        e.wave.position.z += e.speed * dt;
+        e.foam.position.z = e.wave.position.z;
+        e.wave.position.y = 1 + Math.sin(e.t*3) * 0.3;
+        e.foam.position.y = e.wave.position.y + 0.7;
+
+        // Arrasta carros na frente da onda
+        for (const v of traffic) {
+            const d = Math.abs(v.object.position.z - e.wave.position.z);
+            if (d < 8 && !v.destroyed) {
+                v.vel.z += 30 * dt;
+                v.vel.y += 10 * dt;
+                v.angVel.set(Math.random()*4, Math.random()*4, Math.random()*4);
+            }
+        }
+    }
+
+    // ============================================================
+    //  🌪️ TORNADO
+    // ============================================================
+    function eventTornado() {
+        log("🌪️ TORNADO FORMING");
+        showBanner("🌪️ TORNADO", "0.8,0.8,0.9");
+
+        const tornado = new THREE.Group();
+        for (let i = 0; i < 30; i++) {
+            const r = 0.5 + i * 0.15;
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(r, 0.15, 8, 20),
+                new THREE.MeshBasicMaterial({
+                    color: 0x888899, transparent: true, opacity: 0.4 - i*0.01,
+                    side: THREE.DoubleSide
+                })
+            );
+            ring.position.y = i * 0.8;
+            ring.rotation.x = Math.PI/2;
+            tornado.add(ring);
+        }
+        tornado.position.set(0, 0, -80);
+        scene.add(tornado);
+
+        eventObjects.push({
+            type: "tornado",
+            obj: tornado,
+            t: 0, duration: 10,
+            path: []
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(20, 8, 10),
+            look: new THREE.Vector3(0, 10, -80),
+            duration: 10.5
+        };
+    }
+
+    function updateTornado(e, dt) {
+        e.obj.children.forEach((ring, i) => {
+            ring.rotation.z += dt * (3 + i*0.2);
+            ring.position.x = Math.sin(e.t*2 + i*0.3) * 0.5;
+            ring.position.z = Math.cos(e.t*2 + i*0.3) * 0.5;
+        });
+
+        // Tornado se move
+        e.obj.position.x = Math.sin(e.t * 0.5) * 8;
+        e.obj.position.z = -80 + Math.cos(e.t * 0.4) * 20;
+
+        // Suga carros
+        for (const v of traffic) {
+            if (v.destroyed) continue;
+            const dx = e.obj.position.x - v.object.position.x;
+            const dz = e.obj.position.z - v.object.position.z;
+            const d = Math.sqrt(dx*dx + dz*dz);
+            if (d < 20) {
+                const pull = (1 - d/20) * 40;
+                v.object.position.x += (dx/d) * pull * dt;
+                v.object.position.z += (dz/d) * pull * dt;
+                v.object.position.y += (5 - v.object.position.y) * dt * (1 - d/20);
+                v.object.rotation.y += dt * 5;
+                v.object.rotation.x += dt * 3;
+            }
+        }
+    }
+
+    // ============================================================
+    //  🌑 ECLIPSE
+    // ============================================================
+    function eventEclipse() {
+        log("🌑 SOLAR ECLIPSE");
+        showBanner("🌑 ECLIPSE", "0.6,0.3,0.9");
+
+        const moon = new THREE.Mesh(
+            new THREE.SphereGeometry(8.5, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x111111 })
+        );
+        moon.position.copy(sunMesh.position);
+        moon.position.x -= 40;
+        scene.add(moon);
+
+        eventObjects.push({
+            type: "eclipse",
+            moon, t: 0, duration: 10,
+            sunStartX: sunMesh.position.x,
+            startY: 90,
+            originalExposure: renderer.toneMappingExposure,
+            originalSunIntensity: sunLight.intensity,
+            originalHemiIntensity: hemiLight.intensity,
+            originalFog: scene.fog.color.getHex()
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(0, 5, 12),
+            look: new THREE.Vector3(-40, 30, -180),
+            duration: 10.5
+        };
+    }
+
+    function updateEclipse(e, dt) {
+        const p = e.t / e.duration;
+        // Lua passa na frente do sol
+        e.moon.position.x = -120 + p * 160;
+        e.moon.position.y = sunMesh.position.y;
+        e.moon.position.z = sunMesh.position.z;
+
+        const shadow = Math.exp(-Math.pow((p - 0.5) * 5, 2));
+        sunLight.intensity = e.originalSunIntensity * (1 - shadow * 0.95);
+        hemiLight.intensity = e.originalHemiIntensity * (1 - shadow * 0.6);
+        renderer.toneMappingExposure = e.originalExposure * (1 - shadow * 0.5);
+        scene.fog.color.setRGB(
+            0.56 * (1-shadow*0.8),
+            0.66 * (1-shadow*0.8),
+            0.78 * (1-shadow*0.8)
+        );
+    }
+
+    // ============================================================
+    //  👾 FROTA ALIENÍGENA
+    // ============================================================
+    function eventAlienFleet() {
+        log("👾 ALIEN FLEET DETECTED");
+        showBanner("👾 FLEET", "0.5,1,0.5");
+
+        const ufos = [];
+        for (let i = 0; i < 5; i++) {
+            const ufo = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.5, 2.2, 0.5, 20),
+                new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.9, roughness: 0.2 })
+            );
+            ufo.add(body);
+            const dome = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8, 16, 12, 0, Math.PI*2, 0, Math.PI/2),
+                new THREE.MeshStandardMaterial({ color: 0x66ffcc, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.7 })
+            );
+            dome.position.y = 0.3;
+            ufo.add(dome);
+
+            const light = new THREE.PointLight(0x66ffaa, 40, 20);
+            light.position.y = -1;
+            ufo.add(light);
+
+            ufo.position.set(-12 + i*6, 15, -50);
+            scene.add(ufo);
+            ufos.push({ obj: ufo, light, baseY: 15 });
+        }
+
+        // Lasers de varredura
+        const beams = [];
+        for (let i = 0; i < 5; i++) {
+            const beam = new THREE.Mesh(
+                new THREE.ConeGeometry(1, 10, 12, 1, true),
+                new THREE.MeshBasicMaterial({
+                    color: 0x66ffaa, transparent: true, opacity: 0.15,
+                    side: THREE.DoubleSide
+                })
+            );
+            beam.position.set(-12 + i*6, 10, -50);
+            scene.add(beam);
+            beams.push(beam);
+        }
+
+        eventObjects.push({
+            type: "alienFleet",
+            ufos, beams,
+            t: 0, duration: 9
+        });
+
+        eventCameraOverride = {
+            pos: new THREE.Vector3(0, 8, 15),
+            look: new THREE.Vector3(0, 12, -50),
+            duration: 9.5
+        };
+    }
+
+    function updateAlienFleet(e, dt) {
+        e.ufos.forEach((u, i) => {
+            u.obj.position.x = -12 + i*6 + Math.sin(e.t*1.5 + i)*2;
+            u.obj.position.y = u.baseY + Math.sin(e.t*2 + i*0.5) * 2;
+            u.obj.rotation.y += dt * 2;
+            u.light.intensity = 30 + Math.sin(e.t*8 + i)*20;
+        });
+        e.beams.forEach((b, i) => {
+            b.position.x = e.ufos[i].obj.position.x;
+            b.position.y = e.ufos[i].obj.position.y - 5;
+            b.material.opacity = 0.1 + Math.sin(e.t*6 + i)*0.1;
+        });
+    }
+
+    // ============================================================
+    //  EVENTOS EXISTENTES (abdução, portal, dragão, supernova)
+    // ============================================================
+    function eventAbduction() {
+        log("👽 ALIEN ABDUCTION");
+        showBanner("👽 ABDUCTION", "0.5,1,0.5");
+
+        const ufo = new THREE.Group();
+        const body = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 3, 0.7, 24),
+            new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.9, roughness: 0.2 })
+        );
+        ufo.add(body);
+        const dome = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 16, 12, 0, Math.PI*2, 0, Math.PI/2),
+            new THREE.MeshStandardMaterial({ color: 0x66ffcc, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.7 })
+        );
+        dome.position.y = 0.4;
+        ufo.add(dome);
+        const beam = new THREE.Mesh(
+            new THREE.ConeGeometry(2.5, 10, 24, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0x66ffaa, transparent: true, opacity: 0.25, side: THREE.DoubleSide })
+        );
+        beam.position.y = -5;
+        ufo.add(beam);
+        const beamLight = new THREE.PointLight(0x66ffaa, 80, 30);
+        beamLight.position.y = -2;
+        ufo.add(beamLight);
+
+        const target = traffic[Math.floor(Math.random()*traffic.length)];
+        const tx = target.object.position.x;
+        const tz = target.object.position.z;
+        ufo.position.set(tx, 40, tz);
+        scene.add(ufo);
+
+        eventObjects.push({
+            type: "abduction", ufo, beam, beamLight, target, tx, tz,
+            t: 0, duration: 6, hoverY: 8, startY: 40, endY: 40
+        });
+        eventCameraOverride = {
+            pos: new THREE.Vector3(tx + 8, 6, tz + 10),
+            look: new THREE.Vector3(tx, 4, tz),
+            duration: 6.5
+        };
+    }
+
+    function updateAbduction(e, dt) {
+        if (e.t < 1.5) {
+            e.ufo.position.y = e.startY + (e.hoverY - e.startY)*(e.t/1.5);
+        } else if (e.t < 4) {
+            e.ufo.position.y = e.hoverY + Math.sin(e.t*4)*0.3;
+            if (e.target && !e.target.abducted) e.target.abducted = true;
+            if (e.target) {
+                e.target.abductY += dt * (8 - e.target.abductY*0.5);
+                e.target.object.position.y = e.target.abductY;
+                e.target.object.rotation.y += dt*3;
+                e.target.object.rotation.z += dt*0.5;
+            }
+            e.beam.scale.x = 1 + Math.sin(e.t*8)*0.15;
+            e.beam.scale.z = 1 + Math.sin(e.t*8)*0.15;
+        } else {
+            const p = Math.min(1, (e.t - 4) / 2);
+            e.ufo.position.y = e.hoverY + (e.endY - e.hoverY)*p;
+            if (e.target) {
+                e.target.object.position.y = e.ufo.position.y - 4;
+                e.target.object.rotation.y += dt*6;
+            }
+            e.beam.material.opacity = Math.max(0, 0.25 - p*0.25);
+        }
+    }
+
+    function eventPortal() {
+        log("🌈 DIMENSIONAL PORTAL");
+        showBanner("🌈 PORTAL", "0.6,0.3,1");
+
+        const portal = new THREE.Group();
+        const ring1 = new THREE.Mesh(
+            new THREE.TorusGeometry(4, 0.3, 16, 48),
+            new THREE.MeshBasicMaterial({ color: 0x8d4dff })
+        );
+        portal.add(ring1);
+        const ring2 = new THREE.Mesh(
+            new THREE.TorusGeometry(4.4, 0.15, 16, 48),
+            new THREE.MeshBasicMaterial({ color: 0x00eaff })
+        );
+        portal.add(ring2);
+        const disc = new THREE.Mesh(
+            new THREE.CircleGeometry(3.8, 32),
+            new THREE.MeshBasicMaterial({ color: 0x220044, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+        );
+        portal.add(disc);
+        const pl = new THREE.PointLight(0x8d4dff, 150, 40);
+        portal.add(pl);
+
+        const pz = -60 - Math.random()*40;
+        portal.position.set(0, 5, pz);
+        scene.add(portal);
+
+        const drones = [];
+        for (let i = 0; i < 3; i++) {
+            const d = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 12, 12),
+                new THREE.MeshBasicMaterial({ color: [0x00eaff, 0xff4e72, 0x00ff9d][i] })
+            );
+            d.position.set(-15 + i*2, 5 + i*0.5, pz + 30);
+            scene.add(d);
+            drones.push({ obj: d, delay: i*0.6 });
+        }
+
+        eventObjects.push({ type: "portal", portal, ring1, ring2, disc, pl, drones, t: 0, duration: 6, pz });
+        eventCameraOverride = { pos: new THREE.Vector3(0, 5, pz + 25), look: new THREE.Vector3(0, 5, pz), duration: 6.5 };
+    }
+
+    function updatePortal(e, dt) {
+        e.ring1.rotation.z += dt*0.8;
+        e.ring2.rotation.z -= dt*1.2;
+        const pulse = 1 + Math.sin(e.t*3)*0.08;
+        e.portal.scale.setScalar(pulse);
+        e.pl.intensity = 120 + Math.sin(e.t*5)*40;
+        for (const d of e.drones) {
+            if (e.t < d.delay) continue;
+            const dir = new THREE.Vector3().subVectors(e.portal.position, d.obj.position);
+            const dist = dir.length();
+            if (dist > 0.5) {
+                dir.normalize();
+                d.obj.position.addScaledVector(dir, dt * 12);
+                d.obj.scale.multiplyScalar(1 - dt*0.2);
+            } else {
+                d.obj.scale.setScalar(Math.max(0.01, d.obj.scale.x - dt*0.5));
+            }
+        }
+    }
+
+    function eventDragon() {
+        log("🐉 LIGHT DRAGON AWAKENED");
+        showBanner("🐉 DRAGON", "0,1,1");
+
+        const head = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 16, 12),
+            new THREE.MeshBasicMaterial({ color: 0x00eaff })
+        );
+        scene.add(head);
+        const bodySegs = [];
+        for (let i = 0; i < 20; i++) {
+            const s = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8 - i*0.03, 10, 8),
+                new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00eaff : 0x8d4dff })
+            );
+            scene.add(s);
+            bodySegs.push(s);
+        }
+        const dLight = new THREE.PointLight(0x00eaff, 100, 30);
+        scene.add(dLight);
+
+        eventObjects.push({ type: "dragon", head, bodySegs, dLight, t: 0, duration: 8, positions: [] });
+        eventCameraOverride = { pos: new THREE.Vector3(0, 8, 15), look: new THREE.Vector3(0, 6, -40), duration: 8.5 };
+    }
+
+    function updateDragon(e, dt) {
+        const t = e.t;
+        const x = Math.sin(t*0.6) * 15;
+        const y = 8 + Math.sin(t*0.9) * 3;
+        const z = 10 - t * 15;
+        e.head.position.set(x, y, z);
+        e.head.rotation.y = Math.atan2(Math.cos(t*0.6)*15*0.6, -15);
+        e.positions.unshift(new THREE.Vector3(x, y, z));
+        if (e.positions.length > 60) e.positions.pop();
+        for (let i = 0; i < e.bodySegs.length; i++) {
+            const idx = Math.min(e.positions.length-1, (i+1)*3);
+            const p = e.positions[idx];
+            if (p) {
+                e.bodySegs[i].position.copy(p);
+                e.bodySegs[i].position.y += Math.sin(t*5 + i)*0.3;
+            }
+        }
+        e.dLight.position.copy(e.head.position);
+    }
+
+    function eventSupernova() {
+        log("☀️ SUPERNOVA EVENT");
+        showBanner("☀️ SUPERNOVA", "1,0.5,0");
+        eventObjects.push({
+            type: "supernova", t: 0, duration: 4.5,
+            sunMesh, originalSunScale: sunMesh.scale.x,
+            originalExposure: renderer.toneMappingExposure,
+            originalFog: scene.fog.color.getHex(),
+            originalFogDensity: scene.fog.density
+        });
+        eventCameraOverride = { pos: new THREE.Vector3(0, 4, 12), look: new THREE.Vector3(0, 30, -100), duration: 5 };
+    }
+
+    function updateSupernova(e, dt) {
+        const t = e.t, dur = e.duration, peak = 1.8;
+        if (t < peak) {
+            const p = t / peak;
+            sunMesh.scale.setScalar(e.originalSunScale * (1 + p*8));
+            sunMesh.material.color.setRGB(1, 1 - p*0.7, 1 - p*0.9);
+            renderer.toneMappingExposure = e.originalExposure + p * 2;
+            scene.fog.color.setRGB(1, 0.3 - p*0.3, 0.3 - p*0.3);
+            scene.fog.density = e.originalFogDensity * (1 + p*2);
+            sunLight.intensity = 2.5 + p*10;
+        } else {
+            const p = (t - peak) / (dur - peak);
+            sunMesh.scale.setScalar(e.originalSunScale * (9 - p*8));
+            sunMesh.material.color.setRGB(1, 0.3 + p*0.7, 0.1 + p*0.9);
+            renderer.toneMappingExposure = e.originalExposure + 2 * (1 - p);
+            scene.fog.color.setHex(e.originalFog);
+            scene.fog.density = e.originalFogDensity;
+            sunLight.intensity = 12.5 * (1 - p) + 2.5;
+        }
+    }
+
+    // ============================================================
+    //  BANCO DE EVENTOS
+    // ============================================================
+    const EVENTS = [
+        { name: "MISSILE",    fn: launchMissile },
+        { name: "METEOR",     fn: eventMeteor },
+        { name: "TSUNAMI",    fn: eventTsunami },
+        { name: "TORNADO",    fn: eventTornado },
+        { name: "ECLIPSE",    fn: eventEclipse },
+        { name: "FLEET",      fn: eventAlienFleet },
+        { name: "ABDUCTION",  fn: eventAbduction },
+        { name: "PORTAL",     fn: eventPortal },
+        { name: "DRAGON",     fn: eventDragon },
+        { name: "SUPERNOVA",  fn: eventSupernova }
+    ];
+
+    function triggerRandomEvent() {
+        if (eventActive) return;
+        const e = EVENTS[Math.floor(Math.random()*EVENTS.length)];
+        log("EVENT: " + e.name);
+        e.fn();
+        eventActive = e.name;
+        nextEventTime = 14 + Math.random()*10;
+    }
+
+    function showBanner(text, colorRGB = "1,0.5,0.2") {
+        ui.banner.textContent = text;
+        ui.banner.style.textShadow = `0 0 30px rgb(${colorRGB}), 0 0 60px rgb(${colorRGB})`;
+        ui.banner.classList.add("show");
+        setTimeout(() => ui.banner.classList.remove("show"), 2200);
+    }
+
+    // ============================================================
+    //  UPDATE GERAL
+    // ============================================================
+    function updateEvents(dt) {
+        for (let i = eventObjects.length - 1; i >= 0; i--) {
+            const e = eventObjects[i];
+            e.t += dt;
+
+            if (e.type === "missile") updateMissile(e, dt);
+            else if (e.type === "meteor") updateMeteor(e, dt);
+            else if (e.type === "tsunami") updateTsunami(e, dt);
+            else if (e.type === "tornado") updateTornado(e, dt);
+            else if (e.type === "eclipse") updateEclipse(e, dt);
+            else if (e.type === "alienFleet") updateAlienFleet(e, dt);
+            else if (e.type === "abduction") updateAbduction(e, dt);
+            else if (e.type === "portal") updatePortal(e, dt);
+            else if (e.type === "dragon") updateDragon(e, dt);
+            else if (e.type === "supernova") updateSupernova(e, dt);
+
+            if ((e.t >= e.duration || e.done) && !e.residual) {
+                cleanupEvent(e);
+                eventObjects.splice(i, 1);
+            }
+        }
+
+        if (eventObjects.length === 0 && eventActive) {
+            eventActive = null;
+            eventCameraOverride = null;
+            log("EVENT COMPLETE");
+        }
+
+        if (!eventActive && running) {
+            nextEventTime -= dt;
+            ui.nextEvent.textContent = nextEventTime.toFixed(1) + "s";
+            if (nextEventTime <= 0) triggerRandomEvent();
+        } else {
+            ui.nextEvent.textContent = eventActive || "--";
+        }
+    }
+
+    function cleanupEvent(e) {
+        if (e.type === "missile") { scene.remove(e.obj); }
+        else if (e.type === "meteor") { scene.remove(e.core); scene.remove(e.halo); scene.remove(e.light); }
+        else if (e.type === "abduction") {
+            scene.remove(e.ufo);
+            if (e.target) {
+                e.target.object.position.y = 0;
+                e.target.object.rotation.set(0, Math.PI, 0);
+                e.target.abducted = false;
+                e.target.abductY = 0;
+            }
+        }
+        else if (e.type === "portal") { scene.remove(e.portal); for (const d of e.drones) scene.remove(d.obj); }
+        else if (e.type === "dragon") { scene.remove(e.head); scene.remove(e.dLight); for (const b of e.bodySegs) scene.remove(b); }
+        else if (e.type === "supernova") {
+            sunMesh.scale.setScalar(e.originalSunScale);
+            sunMesh.material.color.setHex(0xfff2c0);
+            renderer.toneMappingExposure = e.originalExposure;
+            scene.fog.color.setHex(e.originalFog);
+            scene.fog.density = e.originalFogDensity;
+            sunLight.intensity = 2.5;
+        }
+        else if (e.type === "tsunami") { scene.remove(e.wave); scene.remove(e.foam); }
+        else if (e.type === "tornado") { scene.remove(e.obj); }
+        else if (e.type === "eclipse") {
+            scene.remove(e.moon);
+            sunLight.intensity = e.originalSunIntensity;
+            hemiLight.intensity = e.originalHemiIntensity;
+            renderer.toneMappingExposure = e.originalExposure;
+            scene.fog.color.setHex(e.originalFog);
+        }
+        else if (e.type === "alienFleet") {
+            for (const u of e.ufos) scene.remove(u.obj);
+            for (const b of e.beams) scene.remove(b);
+        }
+    }
+
+    // Resíduos (trails, debris, smoke, crateras, fogo)
+    function updateResidues(dt) {
+        for (let i = eventObjects.length - 1; i >= 0; i--) {
+            const r = eventObjects[i];
+            if (r.type === "trail") {
+                r.t += dt;
+                r.obj.material.opacity = Math.max(0, 1 - r.t/r.duration);
+                r.obj.scale.multiplyScalar(1 + dt*2);
+                if (r.t >= r.duration) { scene.remove(r.obj); eventObjects.splice(i, 1); }
+            } else if (r.type === "debrisPart") {
+                r.t += dt;
+                r.obj.position.addScaledVector(r.velocity, dt);
+                if (r.gravity) r.velocity.y -= r.gravity * dt;
+                r.velocity.multiplyScalar(Math.pow(0.6, dt));
+                r.obj.material.opacity = Math.max(0, 1 - r.t/r.duration);
+                if (r.t >= r.duration || r.obj.position.y < 0) {
+                    scene.remove(r.obj); eventObjects.splice(i, 1);
+                }
+            } else if (r.type === "smoke") {
+                r.t += dt;
+                r.obj.position.y += r.rise * dt;
+                r.obj.position.x += r.drift * dt;
+                r.obj.scale.multiplyScalar(1 + dt*0.8);
+                r.obj.material.opacity = Math.max(0, 0.7 * (1 - r.t/r.duration));
+                if (r.t >= r.duration) { scene.remove(r.obj); eventObjects.splice(i, 1); }
+            } else if (r.type === "shockwave") {
+                r.t += dt;
+                const p = r.t / r.duration;
+                r.obj.scale.setScalar(1 + p * r.maxScale);
+                r.obj.material.opacity = Math.max(0, 1 - p);
+                if (r.t >= r.duration) { scene.remove(r.obj); eventObjects.splice(i, 1); }
+            } else if (r.type === "fireball") {
+                r.t += dt;
+                const p = r.t / r.duration;
+                r.obj.scale.setScalar(r.initialScale * (1 + p * 3));
+                r.obj.material.opacity = Math.max(0, 1 - p);
+                if (r.t >= r.duration) { scene.remove(r.obj); eventObjects.splice(i, 1); }
+            } else if (r.type === "explosionLight") {
+                r.t += dt;
+                r.light.intensity = Math.max(0, 400 * (1 - r.t/r.duration));
+                if (r.t >= r.duration) { scene.remove(r.light); eventObjects.splice(i, 1); }
+            }
+        }
+    }
+
+    // ============ CARROS DESTRUÍDOS (física) ============
+    function updateDestroyedCars(dt) {
+        for (const v of traffic) {
+            if (!v.destroyed) continue;
+
+            // Física: gravidade + rotação
+            v.vel.y -= 25 * dt;
+            v.object.position.addScaledVector(v.vel, dt);
+            v.object.rotation.x += v.angVel.x * dt;
+            v.object.rotation.y += v.angVel.y * dt;
+            v.object.rotation.z += v.angVel.z * dt;
+
+            // Chão
+            if (v.object.position.y < 0.5) {
+                v.object.position.y = 0.5;
+                v.vel.y *= -0.3;
+                v.vel.x *= 0.7;
+                v.vel.z *= 0.7;
+                v.angVel.multiplyScalar(0.7);
+                if (Math.abs(v.vel.y) < 0.5) v.vel.y = 0;
+            }
+
+            // Fogo pulsante
+            if (v.flame) {
+                v.flame.intensity = 30 + Math.sin(simTime*15 + v.phase)*20;
+                if (Math.random() > 0.7) {
+                    const spark = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.1, 4, 4),
+                        new THREE.MeshBasicMaterial({ color: 0xffaa33 })
+                    );
+                    spark.position.copy(v.object.position);
+                    spark.position.y += 1.5;
+                    scene.add(spark);
+                    eventObjects.push({
+                        type: "debrisPart",
+                        obj: spark,
+                        velocity: new THREE.Vector3((Math.random()-0.5)*3, 2+Math.random()*3, (Math.random()-0.5)*3),
+                        t: 0, duration: 1,
+                        gravity: 5
+                    });
+                }
+            }
+        }
+    }
+
+    // ============ INIT ============
+    function init() {
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x8fa8c8, 0.012);
+
+        camera = new THREE.PerspectiveCamera(70, 1, 0.1, 800);
+        camera.position.set(0, 2.5, 5);
+        camera.lookAt(0, 1.5, -40);
+
+        renderer = new THREE.WebGLRenderer({ canvas: $("world"), antialias: true, powerPreference: "high-performance" });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        hemiLight = new THREE.HemisphereLight(0xbcd8ff, 0x2a3a4a, 1.2);
+        scene.add(hemiLight);
+        sunLight = new THREE.DirectionalLight(0xfff2cc, 2.5);
+        sunLight.position.set(-80, 90, -180);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.set(1024, 1024);
+        sunLight.shadow.camera.near = 1;
+        sunLight.shadow.camera.far = 600;
+        sunLight.shadow.camera.left = -120;
+        sunLight.shadow.camera.right = 120;
+        sunLight.shadow.camera.top = 120;
+        sunLight.shadow.camera.bottom = -120;
+        scene.add(sunLight);
+        ambientLight = new THREE.AmbientLight(0x556677, 0.4);
+        scene.add(ambientLight);
+
+        createSky();
+        createRoad();
+        createBuildings();
+
+        for (let i = 0; i < 12; i++) {
+            createTrafficCar(
+                Math.random() > 0.5 ? -3 : 3,
+                -15 - i*22,
+                [0xcc2222, 0x2266cc, 0x22aa44, 0xffffff, 0xdddd22, 0xaa22aa, 0xff6600, 0x00ccff][i % 8]
+            );
+        }
+
+        resize();
+        render();
+    }
+
+    // ============ WORLD UPDATE ============
+    function updateWorld(dt) {
+        simTime += dt;
+        const speed = Number(ui.speed.value);
+
+        for (const mark of roadMarks) {
+            mark.position.z += speed * dt * 40;
+            if (mark.position.z > 40) mark.position.z -= 490;
+        }
+
+        // Tráfego normal (não destruídos, não abduzidos)
+        for (const v of traffic) {
+            if (v.abducted || v.destroyed) continue;
+            v.object.position.z += v.speed * speed * dt;
+            for (const w of v.wheels) w.rotation.x += dt * v.speed * 0.9;
+            v.object.position.y = Math.sin(simTime*8 + v.phase) * 0.015;
+            if (v.object.position.z > 15) {
+                v.object.position.z = -250 - Math.random()*100;
+                v.object.position.x = Math.random() > 0.5 ? -3 : 3;
+            }
+        }
+
+        // Carros destruídos (física)
+        updateDestroyedCars(dt);
+
+        for (const b of buildings) {
+            if (b.beacon) b.beacon.material.opacity = 0.3 + Math.sin(simTime*3 + b.phase)*0.7;
+        }
+
+        // Câmera
+        let targetPos, targetLook;
+        if (eventCameraOverride) {
+            targetPos = eventCameraOverride.pos;
+            targetLook = eventCameraOverride.look;
+        } else {
+            targetPos = currentCamera === 0
+                ? new THREE.Vector3(0, 2.5, 5)
+                : new THREE.Vector3(8, 3.5, 3);
+            targetPos.x += Math.sin(simTime*0.3)*0.2;
+            targetPos.y += Math.sin(simTime*0.5)*0.1;
+            targetLook = currentCamera === 0
+                ? new THREE.Vector3(0, 1.5, -40)
+                : new THREE.Vector3(0, 1.5, -30);
+        }
+
+        camera.position.lerp(targetPos, Math.min(1, dt*2.5));
+        camera.lookAt(targetLook);
+
+        // Screen shake
+        if (screenShake > 0) {
+            screenShake -= dt * 2;
+            const s = Math.max(0, screenShake) * shakeIntensity;
+            camera.position.x += (Math.random() - 0.5) * s * 0.6;
+            camera.position.y += (Math.random() - 0.5) * s * 0.6;
+            camera.position.z += (Math.random() - 0.5) * s * 0.3;
+        }
+
+        if (sky) sky.position.copy(camera.position);
+
+        updateEvents(dt);
+        updateResidues(dt);
+    }
+
+    function updateUI() {
+        ui.drawCalls.textContent = renderer.info.render.calls;
+        ui.objectCount.textContent = renderer.info.render.triangles.toLocaleString();
+        ui.hudVehicles.textContent = traffic.length;
+        ui.clock.textContent = new Date().toLocaleTimeString();
+    }
+
+    function render() { renderer.render(scene, camera); updateUI(); }
+
+    function animate(now) {
+        if (!running) return;
+        raf = requestAnimationFrame(animate);
+        if (!previousTime) previousTime = now;
+        const rawDt = Math.min((now - previousTime) / 1000, 0.05);
+        previousTime = now;
+        fpsFrames++; fpsElapsed += rawDt;
+        if (fpsElapsed >= 0.5) {
+            const fps = Math.round(fpsFrames / fpsElapsed);
+            ui.fps.textContent = fps;
+            ui.hudFps.textContent = fps;
+            ui.frameTime.textContent = fps > 0 ? (1000/fps).toFixed(2) + " ms" : "-- ms";
+            ui.fpsMeter.style.width = Math.min(100, fps/120*100) + "%";
+            fpsFrames = 0; fpsElapsed = 0;
+        }
+        updateWorld(rawDt * Number(ui.speed.value));
+        render();
+    }
+
+    // ============ CONTROLES ============
+    function start() {
+        if (running) return;
+        running = true;
+        previousTime = 0; fpsFrames = 0; fpsElapsed = 0;
+        nextEventTime = 5;
+        document.body.classList.add("running");
+        ui.status.textContent = "DESTRUCTION MODE RUNNING";
+        ui.start.disabled = true; ui.pause.disabled = false;
+        ui.launchMissile.disabled = false;
+        ui.dropMeteor.disabled = false;
+        ui.surprise.disabled = false;
+        log("DESTRUCTION MODE ENGAGED");
+        raf = requestAnimationFrame(animate);
+    }
+    function pause() {
+        if (!running) return;
+        running = false; cancelAnimationFrame(raf);
+        document.body.classList.remove("running");
+        ui.status.textContent = "PAUSED";
+        ui.start.disabled = false; ui.pause.disabled = true;
+        ui.launchMissile.disabled = true;
+        ui.dropMeteor.disabled = true;
+        ui.surprise.disabled = true;
+        log("PAUSED");
+    }
+    function reset() {
+        pause();
+        for (const v of traffic) scene.remove(v.object);
+        traffic.length = 0;
+        for (const e of eventObjects) cleanupEvent(e);
+        eventObjects.length = 0;
+        for (const c of craters) { scene.remove(c.crater); scene.remove(c.rim); scene.remove(c.hole); }
+        craters.length = 0;
+        eventActive = null; eventCameraOverride = null; nextEventTime = 5;
+        destroyedCount = 0; ui.destroyedCount.textContent = "0";
+        for (let i = 0; i < 10; i++) {
+            createTrafficCar(
+                Math.random() > 0.5 ? -3 : 3,
+                -15 - i*30,
+                [0xcc2222, 0x2266cc, 0x22aa44, 0xffffff, 0xdddd22, 0xaa22aa, 0xff6600, 0x00ccff][i % 8]
+            );
+        }
+        render();
+        log("RESET");
+    }
+    function resize() {
+        if (!renderer || !camera) return;
+        const vp = $("viewport");
+        renderer.setSize(vp.clientWidth, vp.clientHeight, false);
+        camera.aspect = vp.clientWidth / vp.clientHeight;
+        camera.updateProjectionMatrix();
+        ui.resolution.textContent = renderer.domElement.width + " × " + renderer.domElement.height;
+        if (!running) render();
+    }
+
+    ui.start.addEventListener("click", start);
+    ui.pause.addEventListener("click", pause);
+    ui.reset.addEventListener("click", reset);
+    ui.surprise.addEventListener("click", () => { if (running) triggerRandomEvent(); });
+    ui.launchMissile.addEventListener("click", () => { if (running) launchMissile(); });
+    ui.dropMeteor.addEventListener("click", () => { if (running) eventMeteor(); });
+    ui.traffic.addEventListener("click", () => {
+        createTrafficCar(Math.random()>0.5?-3:3, -250, [0xcc2222,0x2266cc,0xffffff,0x22aa44][Math.floor(Math.random()*4)]);
+        log("TRAFFIC ADDED");
+    });
+    ui.camera.addEventListener("click", () => {
+        currentCamera = (currentCamera + 1) % 2;
+        log("CAMERA " + currentCamera);
+    });
+    ui.speed.addEventListener("input", () => {
+        ui.speedValue.textContent = Number(ui.speed.value).toFixed(1) + "×";
+    });
+    ui.fog.addEventListener("input", () => {
+        ui.fogValue.textContent = ui.fog.value + "%";
+        if (scene.fog) scene.fog.density = Number(ui.fog.value)/100 * 0.02;
+    });
+    window.addEventListener("resize", resize);
+
+    try { init(); log("DESTRUCTION MODE READY"); log("10 EVENTS ARMED"); }
+    catch (err) { console.error(err); ui.status.textContent = "INIT ERROR"; log("ERROR: " + err.message); }
+})();
+</script>
+</body>
+</html>
